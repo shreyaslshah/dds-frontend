@@ -27,8 +27,8 @@
 }
 
 .form-control {
-  background-color: #1a1a2e;
-  color: #ffffff;
+  background-color: white;
+  /* color: #ffffff; */
   border-color: #4e4e68;
   padding: 10px;
   border-radius: 5px;

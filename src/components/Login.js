@@ -108,7 +108,7 @@ const Login = ({ onLogin }) => {
     <>
       <div className="page-container">
         <div className="form-container">
-          <h2 className="heading">Resilient App</h2>
+          <h2 className="heading">ResAuc</h2>
 
           <div ref={animationContainer} className="animation-container"></div>
 

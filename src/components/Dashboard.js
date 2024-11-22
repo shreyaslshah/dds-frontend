@@ -7,7 +7,7 @@ import useNavigationHelpers from '../functions';
 import ResVaultSDK from 'resvault-sdk';
 import './Dashboard.css';
 import { useAuth } from '../AuthContext'; // Import the AuthContext hook
-
+import { useNavigate } from 'react-router-dom';
 
 const Dashboard = () => {
   const { goToMyListings, goToNewListing, logout } = useNavigationHelpers();
@@ -75,7 +75,7 @@ const Dashboard = () => {
       sdkRef.current?.sendMessage({
         type: 'commit',
         direction: 'commit',
-        amount: bidValue,
+        amount: '1',
         data: transactionData,
         recipient,
       });
@@ -126,31 +126,36 @@ const Dashboard = () => {
         <h2 className="text-center mb-4">All Listings</h2>
         <div className="row">
           {listings.length === 0 ? (
-            <p>No listings found.</p>
-          ) : (listings.map((listing, index) => (
-            <div className="col-md-4 mb-4" key={index}>
-              <Card className="card-hover">
-                <Card.Img
-                  variant="top"
-                  src={listing.image ? `data:image/jpeg;base64,${listing.image}` : 'https://www.svgrepo.com/show/508699/landscape-placeholder.svg'}
-                />
-                <Card.Body>
-                  <Card.Title className="card-title">{listing.title}</Card.Title>
-                  <Card.Text className="card-text">{listing.description}</Card.Text>
-                  <Card.Subtitle className="card-subtitle minimum-bid mb-2">Minimum Bid Value: {listing.minBidValue || '$0'}</Card.Subtitle>
-                  <ul className="text-muted">
-                    {(listing.existingBids || []).map((bid, index) => (
-                      <li key={index}>{bid}</li>
-                    ))}
-                  </ul>
-                  <Button className="btn-gradient mt-3" onClick={() => handleMakeBidClick(listing)}>
-                    Make a Bid
-                  </Button>
-                </Card.Body>
-              </Card>
-            </div>
-          )))}
+            <p>No listings available.</p>
+          ) : listings.filter(listing => !listing.sold).length === 0 ? (
+            <p>No unsold listings found.</p>
+          ) : (
+            listings.filter(listing => !listing.sold).map((listing, index) => (
+              <div className="col-md-4 mb-4" key={index}>
+                <Card className="card-hover">
+                  <Card.Img
+                    variant="top"
+                    src={listing.image ? `data:image/jpeg;base64,${listing.image}` : 'https://www.svgrepo.com/show/508699/landscape-placeholder.svg'}
+                  />
+                  <Card.Body>
+                    <Card.Title className="card-title">{listing.title}</Card.Title>
+                    <Card.Text className="card-text">{listing.description}</Card.Text>
+                    <Card.Subtitle className="card-subtitle minimum-bid mb-2">Minimum Bid Value: {listing.minBidValue || '$0'}</Card.Subtitle>
+                    <ul className="text-muted">
+                      {(listing.existingBids || []).map((bid, index) => (
+                        <li key={index}>{bid}</li>
+                      ))}
+                    </ul>
+                    <Button className="btn-gradient mt-3" onClick={() => handleMakeBidClick(listing)}>
+                      Make a Bid
+                    </Button>
+                  </Card.Body>
+                </Card>
+              </div>
+            ))
+          )}
         </div>
+
       </div>
 
       {/* Modal */}

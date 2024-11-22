@@ -55,7 +55,7 @@ const NewListing = () => {
               itemImage: file ? file.name : 'No file uploaded',
             };
   
-            const amount = '1219';
+            const amount = '1';
             const recipient = 'DpVsFmC7d5e39MgRkPmfVPR8npJ3RRsRPZhRDzrK7DCm';
   
             sdkRef.current?.sendMessage({

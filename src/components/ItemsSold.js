@@ -1,27 +1,63 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
+import axios from 'axios';
 import 'bootstrap/dist/css/bootstrap.min.css';
 import { Card, Button } from 'react-bootstrap';
-import { NavLink } from 'react-router-dom'; // Import NavLink
+import { NavLink } from 'react-router-dom';
 import useNavigationHelpers from '../functions';
+import { useAuth } from '../AuthContext'; // Import the AuthContext for auth state
 import './ItemsStyles.css'; // Custom styling file
 
 const ItemsSold = () => {
   const { logout } = useNavigationHelpers();
+  const { authState } = useAuth(); // Get the current auth state
+  const [soldItems, setSoldItems] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
 
   const handleLogout = () => logout();
-  
+
   const handleSendReceipt = (itemId) => {
     console.log(`Sending receipt for item ID: ${itemId}`);
   };
 
-  const soldItems = [
-    { id: 1, image: 'https://images.pexels.com/photos/674010/pexels-photo-674010.jpeg?cs=srgb&dl=pexels-anjana-c-169994-674010.jpg&fm=jpg', title: 'Sold Item 1', description: 'Description of Sold Item 1', soldFor: '$200', buyer: 'John Doe' },
-    { id: 2, image: 'https://images.pexels.com/photos/674010/pexels-photo-674010.jpeg?cs=srgb&dl=pexels-anjana-c-169994-674010.jpg&fm=jpg', title: 'Sold Item 2', description: 'Description of Sold Item 2', soldFor: '$300', buyer: 'Jane Smith' }
-  ];
+  // Fetch sold items from the backend
+  useEffect(() => {
+    const fetchSoldItems = async () => {
+      try {
+        const response = await axios.get('http://localhost:3000/sold-by-me', {
+          headers: { 'Content-Type': 'application/json' },
+          params: { username: authState.username }, // Pass the username as a query parameter
+        });
+
+        // Process the response to calculate `soldFor` as the highest bid value
+        const updatedSoldItems = response.data.map(item => {
+          // Extract highest bid value from the bids array
+          const highestBid = item.bids.reduce(
+            (max, bid) => (bid.bidValue > max ? bid.bidValue : max),
+            item.minBidValue // Start with the minimum bid value
+          );
+
+          return {
+            ...item,
+            soldFor: `$${highestBid.toFixed(2)}`, // Format as currency
+          };
+        });
+
+        setSoldItems(updatedSoldItems);
+      } catch (err) {
+        console.error('Error fetching sold items:', err);
+        setError('Failed to fetch sold items. Please try again later.');
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchSoldItems();
+  }, [authState.username]);
 
   return (
     <div>
-      {/* Navbar - Make it consistent with the My Listings navbar */}
+      {/* Navbar */}
       <nav className="navbar navbar-expand-lg sticky-top" style={{ backgroundColor: '#1a1a40' }}>
         <div className="container">
           <NavLink className="navbar-brand text-light" to="/dashboard" style={{ fontWeight: 'bold', fontSize: '24px' }}>
@@ -58,24 +94,30 @@ const ItemsSold = () => {
       {/* Main content */}
       <div className="container mt-5">
         <h2 className="text-center mb-4">Items Sold</h2>
-        <div className="row">
-          {soldItems.map((item) => (
-            <div className="col-md-4 mb-4" key={item.id}>
-              <Card className="card-hover shadow-sm">
-                <Card.Img variant="top" src={item.image} />
-                <Card.Body>
-                  <Card.Title className="card-title">{item.title}</Card.Title>
-                  <Card.Text>{item.description}</Card.Text>
-                  <Card.Subtitle className="card-subtitle mb-2">Sold For: {item.soldFor}</Card.Subtitle>
-                  <Card.Subtitle className="card-subtitle mb-2">Buyer: {item.buyer}</Card.Subtitle>
-                  <Button variant="success" onClick={() => handleSendReceipt(item.id)} className="me-2 btn-gradient">
-                    Send Receipt
-                  </Button>
-                </Card.Body>
-              </Card>
-            </div>
-          ))}
-        </div>
+
+        {loading ? (
+          <p className="text-center">Loading sold items...</p>
+        ) : error ? (
+          <p className="text-center text-danger">{error}</p>
+        ) : soldItems.length === 0 ? (
+          <p className="text-center">No items sold yet.</p>
+        ) : (
+          <div className="row">
+            {soldItems.map((item) => (
+              <div className="col-md-4 mb-4" key={item._id}>
+                <Card className="card-hover shadow-sm">
+                  <Card.Img variant="top" src={item.image ? `data:image/jpeg;base64,${item.image}` : 'https://www.svgrepo.com/show/508699/landscape-placeholder.svg'} />
+                  <Card.Body>
+                    <Card.Title className="card-title">{item.title}</Card.Title>
+                    <Card.Text>{item.description}</Card.Text>
+                    <Card.Subtitle className="card-subtitle mb-2">Sold For: {item.soldFor}</Card.Subtitle>
+
+                  </Card.Body>
+                </Card>
+              </div>
+            ))}
+          </div>
+        )}
       </div>
     </div>
   );

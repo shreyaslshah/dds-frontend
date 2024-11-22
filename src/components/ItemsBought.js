@@ -1,29 +1,59 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
+import axios from 'axios';
 import 'bootstrap/dist/css/bootstrap.min.css';
-import { Card, Button } from 'react-bootstrap';
+import { Card } from 'react-bootstrap';
+import { NavLink } from 'react-router-dom';
 import useNavigationHelpers from '../functions';
-import { NavLink } from 'react-router-dom'; // Use NavLink for active link styling
+import { useAuth } from '../AuthContext'; // Import the AuthContext for auth state
 import './ItemsStyles.css'; // Custom styling file
 
 const ItemsBought = () => {
   const { logout } = useNavigationHelpers();
+  const { authState } = useAuth(); // Get the current auth state
+  const [boughtItems, setBoughtItems] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
 
-  const handleLogout = () => {
-    logout();
-  };
+  const handleLogout = () => logout();
 
-  const handleRequestInvoice = (itemId) => {
-    console.log(`Requesting invoice for item ID: ${itemId}`);
-  };
+  // Fetch bought items from the backend
+  useEffect(() => {
+    const fetchBoughtItems = async () => {
+      try {
+        const response = await axios.get('http://localhost:3000/bought-by-me', {
+          headers: { 'Content-Type': 'application/json' },
+          params: { username: authState.username }, // Pass the username as a query parameter
+        });
+        console.log(response)
 
-  const boughtItems = [
-    { id: 1, image: 'https://images.pexels.com/photos/674010/pexels-photo-674010.jpeg?cs=srgb&dl=pexels-anjana-c-169994-674010.jpg&fm=jpg', title: 'Bought Item 1', description: 'Description of Bought Item 1', boughtFor: '$150', seller: 'Alice Brown' },
-    { id: 2, image: 'https://images.pexels.com/photos/674010/pexels-photo-674010.jpeg?cs=srgb&dl=pexels-anjana-c-169994-674010.jpg&fm=jpg', title: 'Bought Item 2', description: 'Description of Bought Item 2', boughtFor: '$250', seller: 'Bob Johnson' }
-  ];
+        // Process the response to calculate `boughtFor` as the highest bid value
+        const updatedBoughtItems = response.data.map((item) => {
+          const highestBid = item.bids.reduce(
+            (max, bid) => (bid.bidValue > max ? bid.bidValue : max),
+            item.minBidValue // Start with the minimum bid value
+          );
+
+          return {
+            ...item,
+            boughtFor: `$${highestBid.toFixed(2)}`, // Format as currency
+          };
+        });
+
+        setBoughtItems(updatedBoughtItems);
+      } catch (err) {
+        console.error('Error fetching bought items:', err);
+        setError('Failed to fetch bought items. Please try again later.');
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchBoughtItems();
+  }, [authState.username]);
 
   return (
     <div>
-      {/* Navbar - Make it consistent with the Items Sold page */}
+      {/* Navbar */}
       <nav className="navbar navbar-expand-lg sticky-top" style={{ backgroundColor: '#1a1a40' }}>
         <div className="container">
           <NavLink className="navbar-brand text-light" to="/dashboard" style={{ fontWeight: 'bold', fontSize: '24px' }}>
@@ -60,26 +90,34 @@ const ItemsBought = () => {
       {/* Main content */}
       <div className="container mt-5">
         <h2 className="text-center mb-4">Items Bought</h2>
-        <div className="row">
-          {boughtItems.length > 0 ? (
-            boughtItems.map((item) => (
-              <div className="col-md-4 mb-4" key={item.id}>
-                <Card className="card-hover">
-                  <Card.Img variant="top" src={item.image} />
+
+        {loading ? (
+          <p className="text-center">Loading bought items...</p>
+        ) : error ? (
+          <p className="text-center text-danger">{error}</p>
+        ) : boughtItems.length === 0 ? (
+          <p className="text-center">No items bought yet.</p>
+        ) : (
+          <div className="row">
+            {boughtItems.map((item) => (
+              <div className="col-md-4 mb-4" key={item._id}>
+                <Card className="card-hover shadow-sm">
+                  <Card.Img
+                    variant="top"
+                    src={item.image ? `data:image/jpeg;base64,${item.image}` : 'https://www.svgrepo.com/show/508699/landscape-placeholder.svg'}
+                  />
                   <Card.Body>
                     <Card.Title className="card-title">{item.title}</Card.Title>
                     <Card.Text>{item.description}</Card.Text>
-                    <Card.Subtitle className="card-subtitle minimum-bid mb-2">{`Bought for: ${item.boughtFor}`}</Card.Subtitle>
-                    <Card.Text>Seller: {item.seller}</Card.Text>
-                    <Button className="btn-gradient" onClick={() => handleRequestInvoice(item.id)}>Request Invoice</Button>
+                    <Card.Subtitle className="card-subtitle minimum-bid mb-2">
+                      Bought For: {item.boughtFor}
+                    </Card.Subtitle>
                   </Card.Body>
                 </Card>
               </div>
-            ))
-          ) : (
-            <p className="text-center">No items bought yet.</p>
-          )}
-        </div>
+            ))}
+          </div>
+        )}
       </div>
     </div>
   );

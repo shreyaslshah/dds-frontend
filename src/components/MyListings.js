@@ -1,49 +1,84 @@
-import React from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import 'bootstrap/dist/css/bootstrap.min.css';
 import { Card, Button } from 'react-bootstrap';
 import useNavigationHelpers from '../functions';
-import { NavLink } from 'react-router-dom'; // Import NavLink instead of Link
-import './Dashboard.css'; // Ensure to import the same stylesheet to maintain consistent design
+import ResVaultSDK from 'resvault-sdk';
+import { NavLink } from 'react-router-dom';
+import './Dashboard.css';
+import axios from 'axios';  // Import axios to make API requests
+import { useAuth } from '../AuthContext'; // Import the AuthContext hook
 
 const MyListings = () => {
   const { goToNewListing, logout } = useNavigationHelpers();
+  const sdkRef = useRef(new ResVaultSDK());
+  const { authState } = useAuth(); // Access the current auth state for the username
+  const [myListingsData, setMyListingsData] = useState([]);  // State for listings
+
+  useEffect(() => {
+    const fetchListings = async () => {
+      try {
+        const response = await axios.get('http://localhost:3000/my-listings', {
+          params: { username: authState.username }, // Send the username as a query parameter
+        });
+        if (response.data) {
+          setMyListingsData(response.data); // Set the fetched listings
+        }
+      } catch (error) {
+        console.error('Error fetching listings:', error);
+      } 
+    };
+
+    if (authState.username) {
+      fetchListings(); // Fetch listings when username is available
+    }
+  }, [authState.username]); // Re-run when the username changes
 
   const handleLogout = () => logout();
 
-  const handleDeleteListing = (listingId) => {
-    console.log(`Delete Listing with ID: ${listingId}`);
+  const handleDeleteListing = (listingId, title) => {
+    const transactionData = {
+      projectName: 'ResAuc',
+      transactionType: 'Delete Listing',
+      listingId,
+      title,
+    };
+
+    const recipient = 'DpVsFmC7d5e39MgRkPmfVPR8npJ3RRsRPZhRDzrK7DCm'; // Replace with appropriate recipient if necessary
+    const amount = '1234'; // No monetary transaction for deletion
+
+    sdkRef.current?.sendMessage({
+      type: 'commit',
+      direction: 'commit',
+      amount,
+      data: transactionData,
+      recipient,
+    });
+
+    console.log('Delete Listing Transaction:', transactionData);
   };
 
-  const handleSellItem = (listingId) => {
-    console.log(`Sell Item with ID: ${listingId}`);
-  };
+  const handleSellItem = (listingId, title, minBidValue) => {
+    const transactionData = {
+      projectName: 'ResAuc',
+      transactionType: 'Sell Item',
+      listingId,
+      title,
+      minBidValue,
+    };
 
-  const myListingsData = [
-    {
-      id: 1,
-      image: 'https://images.pexels.com/photos/674010/pexels-photo-674010.jpeg?cs=srgb&dl=pexels-anjana-c-169994-674010.jpg&fm=jpg',
-      title: 'My Listing 1',
-      description: 'Description for My Listing 1.',
-      existingBids: ['Bid 1', 'Bid 2', 'Bid 3'],
-      minBidValue: '$100',
-    },
-    {
-      id: 2,
-      image: 'https://images.pexels.com/photos/674010/pexels-photo-674010.jpeg?cs=srgb&dl=pexels-anjana-c-169994-674010.jpg&fm=jpg',
-      title: 'My Listing 2',
-      description: 'Description for My Listing 2.',
-      existingBids: ['Bid 1', 'Bid 2'],
-      minBidValue: '$150',
-    },
-    {
-      id: 3,
-      image: 'https://images.pexels.com/photos/674010/pexels-photo-674010.jpeg?cs=srgb&dl=pexels-anjana-c-169994-674010.jpg&fm=jpg',
-      title: 'My Listing 3',
-      description: 'Description for My Listing 3.',
-      existingBids: ['Bid 1'],
-      minBidValue: '$200',
-    },
-  ];
+    const recipient = 'DpVsFmC7d5e39MgRkPmfVPR8npJ3RRsRPZhRDzrK7DCm'; // Replace with appropriate recipient if necessary
+    const amount = minBidValue.replace('$', ''); // Extract numeric value for transaction
+
+    sdkRef.current?.sendMessage({
+      type: 'commit',
+      direction: 'commit',
+      amount,
+      data: transactionData,
+      recipient,
+    });
+
+    console.log('Sell Item Transaction:', transactionData);
+  };
 
   return (
     <div>
@@ -84,38 +119,50 @@ const MyListings = () => {
       {/* Main content */}
       <div className="container mt-5">
         <h2 className="text-center mb-4">My Listings</h2>
-        <div className="row">
-          {myListingsData.map((listing) => (
-            <div className="col-md-4 mb-4" key={listing.id}>
-              <Card className="card-hover shadow-sm">
-                <Card.Img variant="top" src={listing.image} />
-                <Card.Body>
-                  <Card.Title className="card-title">{listing.title}</Card.Title>
-                  <Card.Text>{listing.description}</Card.Text>
-                  <Card.Subtitle className="card-subtitle minimum-bid mb-2">
-                    Minimum Bid Value: {listing.minBidValue}
-                  </Card.Subtitle>
-                  <Card.Subtitle className="card-subtitle mb-2">Existing Bids:</Card.Subtitle>
-                  <ul className="text-muted">
-                    {listing.existingBids.map((bid, index) => (
-                      <li key={index}>{bid}</li>
-                    ))}
-                  </ul>
-                  <Button variant="success" onClick={() => handleSellItem(listing.id)} className="me-2 btn-gradient">
-                    Sell Item
-                  </Button>
-                  <Button
-                    variant="danger"
-                    onClick={() => handleDeleteListing(listing.id)}
-                    className="btn-danger btn-gradient"
-                  >
-                    Delete
-                  </Button>
-                </Card.Body>
-              </Card>
-            </div>
-          ))}
-        </div>
+        {myListingsData.length === 0 ? (
+          <div className="text-center">No listings found.</div>
+        ) : (
+          <div className="row">
+            {
+              myListingsData.map((listing) => (
+                <div className="col-md-4 mb-4" key={listing._id}> {/* Use _id for key */}
+                  <Card className="card-hover shadow-sm">
+                    <Card.Img variant="top" src={listing.image ? `data:image/jpeg;base64,${listing.image}` : 'https://www.svgrepo.com/show/508699/landscape-placeholder.svg'} />
+                    <Card.Body>
+                      <Card.Title className="card-title">{listing.title}</Card.Title>
+                      <Card.Text>{listing.description}</Card.Text>
+                      <Card.Subtitle className="card-subtitle minimum-bid mb-2">
+                        Minimum Bid Value: ${listing.minBidValue}
+                      </Card.Subtitle>
+                      <Card.Subtitle className="card-subtitle mb-2">Existing Bids:</Card.Subtitle>
+                      <ul className="text-muted">
+                        {Array.isArray(listing.bids) && listing.bids.map((bid, index) => (
+                          <li key={index}>
+                            Bid Value: ${bid.bidValue} by {bid.username}
+                          </li>
+                        ))}
+                      </ul>
+                      <Button
+                        variant="success"
+                        onClick={() => handleSellItem(listing._id, listing.title, listing.minBidValue)}
+                        className="me-2 btn-gradient"
+                      >
+                        Sell Item
+                      </Button>
+                      <Button
+                        variant="danger"
+                        onClick={() => handleDeleteListing(listing._id, listing.title)}
+                        className="btn-danger btn-gradient"
+                      >
+                        Delete
+                      </Button>
+                    </Card.Body>
+                  </Card>
+                </div>
+              ))
+            }
+          </div>
+        )}
       </div>
     </div>
   );

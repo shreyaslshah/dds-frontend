@@ -1,12 +1,15 @@
 import React, { useState, useRef } from 'react';
 import 'bootstrap/dist/css/bootstrap.min.css';
 import './Signup.css'; // Reuse styles
+import axios from 'axios';
 import useNavigationHelpers from '../functions';
 import ResVaultSDK from 'resvault-sdk';
 import { NavLink, useLocation } from 'react-router-dom';
+import { useAuth } from '../AuthContext'; // Import the AuthContext hook
 
 const NewListing = () => {
   const { goToMyListings, logout } = useNavigationHelpers();
+  const { authState } = useAuth(); // Access the current auth state for the username
   const [itemTitle, setItemTitle] = useState('');
   const [description, setDescription] = useState('');
   const [minBidValue, setMinBidValue] = useState('');
@@ -14,28 +17,100 @@ const NewListing = () => {
   const sdkRef = useRef(new ResVaultSDK());
   const location = useLocation();  // Access the current route location
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
-    const transactionData = {
-      itemTitle,
-      description,
-      minBidVal: minBidValue,
-      itemImage: file ? file.name : 'No file uploaded',
+  
+    // Prepare the data in a JSON format
+    const jsonData = {
+      title: itemTitle,
+      description: description,
+      minBidValue: parseInt(minBidValue),
+      username: authState.username,  // Get the username from the global auth state
     };
-
-    const amount = '1219';
-    const recipient = 'DpVsFmC7d5e39MgRkPmfVPR8npJ3RRsRPZhRDzrK7DCm';
-
-    sdkRef.current?.sendMessage({
-      type: 'commit',
-      direction: 'commit',
-      amount,
-      data: transactionData,
-      recipient,
-    });
-
-    console.log('Transaction Data:', transactionData);
+  
+    if (file) {
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        const imageBase64 = reader.result.split(',')[1];  // Extract base64 string from Data URL
+        jsonData.imageBase64 = imageBase64;  // Add the base64 image data to the JSON object
+  
+        console.log(JSON.stringify(jsonData))
+        // Now send the data to the backend using Axios as JSON
+        axios.post('http://localhost:3000/new-listing', JSON.stringify(jsonData), {
+          headers: {
+            'Content-Type': 'application/json',
+          },
+        })
+          .then((response) => {
+            console.log('Listing created:', response.data);
+            alert('Listing created successfully!');
+            
+            // Optionally handle transaction after listing creation
+            const transactionData = {
+              projectName: 'ResAuc',
+              transactionType: 'New Listing',
+              itemTitle,
+              description,
+              minBidVal: minBidValue,
+              itemImage: file ? file.name : 'No file uploaded',
+            };
+  
+            const amount = '1219';
+            const recipient = 'DpVsFmC7d5e39MgRkPmfVPR8npJ3RRsRPZhRDzrK7DCm';
+  
+            sdkRef.current?.sendMessage({
+              type: 'commit',
+              direction: 'commit',
+              amount,
+              data: transactionData,
+              recipient,
+            });
+          })
+          .catch((error) => {
+            console.error('Error creating listing:', error);
+            alert('Error creating listing. Please try again!');
+          });
+      };
+      reader.readAsDataURL(file);  // Convert the file to base64
+    } else {
+      // If no file is selected, just send the data without image
+      axios.post('http://localhost:3000/new-listing', jsonData, {
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      })
+        .then((response) => {
+          console.log('Listing created:', response.data);
+          alert('Listing created successfully!');
+          
+          // Handle any post-submission logic
+          const transactionData = {
+            projectName: 'ResAuc',
+            transactionType: 'New Listing',
+            itemTitle,
+            description,
+            minBidVal: minBidValue,
+            itemImage: 'No file uploaded',
+          };
+  
+          const amount = '1219';
+          const recipient = 'DpVsFmC7d5e39MgRkPmfVPR8npJ3RRsRPZhRDzrK7DCm';
+  
+          sdkRef.current?.sendMessage({
+            type: 'commit',
+            direction: 'commit',
+            amount,
+            data: transactionData,
+            recipient,
+          });
+        })
+        .catch((error) => {
+          console.error('Error creating listing:', error);
+          alert('Error creating listing. Please try again!');
+        });
+    }
   };
+  
 
   const handleFileChange = (e) => {
     const uploadedFile = e.target.files[0];

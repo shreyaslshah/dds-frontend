@@ -1,10 +1,10 @@
-// navigationHelpers.js
 import { useNavigate } from "react-router-dom";
+import { useAuth } from "./AuthContext"; // Import your AuthContext
 
 const useNavigationHelpers = () => {
   const navigate = useNavigate();
+  const { clearAuthState } = useAuth(); // Correctly access the clearAuthState function from useAuth
 
-  // Navigation functions
   const goToMyListings = () => {
     navigate("/mylistings");
   };
@@ -14,11 +14,18 @@ const useNavigationHelpers = () => {
   };
 
   const logout = () => {
-    // Implement your logout logic here, then redirect
-    console.log("Logout clicked");
+    // Clear local storage (optional, since this is handled in clearAuthState)
+    localStorage.removeItem("authState");
+
+    // Clear global auth state and local storage
+    clearAuthState();
+
+    // Redirect to login page
+    navigate("/login");
+
+    console.log("User logged out and global state cleared");
   };
 
-  // Return the functions for use in components
   return { goToMyListings, goToNewListing, logout };
 };
 

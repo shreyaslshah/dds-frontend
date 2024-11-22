@@ -1,17 +1,41 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import 'bootstrap/dist/css/bootstrap.min.css';
 import { Card, Button, Modal, Form } from 'react-bootstrap';
-import { Link, useLocation } from 'react-router-dom'; 
+import { Link, useLocation } from 'react-router-dom';
+import axios from 'axios';
 import useNavigationHelpers from '../functions';
+import ResVaultSDK from 'resvault-sdk';
 import './Dashboard.css';
+import { useAuth } from '../AuthContext'; // Import the AuthContext hook
+
 
 const Dashboard = () => {
   const { goToMyListings, goToNewListing, logout } = useNavigationHelpers();
-  const location = useLocation(); 
-
+  const location = useLocation();
+  const { authState } = useAuth(); // Access the current auth state for the username
+  const [listings, setListings] = useState([]);
   const [showModal, setShowModal] = useState(false);
   const [bidValue, setBidValue] = useState('');
   const [selectedCard, setSelectedCard] = useState(null);
+
+  // Initialize ResVaultSDK
+  const sdkRef = useRef(new ResVaultSDK());
+
+  // Fetch listings on component mount
+  useEffect(() => {
+    const fetchListings = async () => {
+      try {
+        const response = await axios.get('http://localhost:3000/all-listings');
+        setListings(response.data); // Assuming response.data contains an array of listings
+        console.log(listings)
+      } catch (error) {
+        console.error('Error fetching listings:', error);
+        alert('Error fetching listings. Please try again later.');
+      }
+    };
+
+    fetchListings();
+  }, []);
 
   const handleMakeBidClick = (card) => {
     setSelectedCard(card);
@@ -23,29 +47,47 @@ const Dashboard = () => {
     setBidValue('');
   };
 
-  const handleBidSubmit = () => {
-    console.log(`Bid Value for ${selectedCard.title}:`, bidValue);
-    handleModalClose();
+  const handleBidSubmit = async () => {
+    if (!bidValue || !selectedCard) return;
+
+    const transactionData = {
+      projectName: 'ResAuc',
+      transactionType: 'Bid',
+      listingTitle: selectedCard.title,
+      bidValue,
+    };
+
+    const recipient = 'DpVsFmC7d5e39MgRkPmfVPR8npJ3RRsRPZhRDzrK7DCm';
+
+    try {
+      // Send bid to backend
+      const response = await axios.post('http://localhost:3000/post-bid', {
+        username: authState.username, // Replace with your actual username
+        listingId: selectedCard._id, // Assuming _id is the unique identifier for the listing
+        bidValue
+      });
+
+      // Handle the response from the backend
+      console.log(response.data); // Success message from the backend
+      alert('Bid placed successfully!');
+
+      // Send message to ResVaultSDK
+      sdkRef.current?.sendMessage({
+        type: 'commit',
+        direction: 'commit',
+        amount: bidValue,
+        data: transactionData,
+        recipient,
+      });
+
+      console.log(`Bid Submitted:`, transactionData);
+      handleModalClose();
+    } catch (error) {
+      console.error('Error placing bid:', error);
+      alert(error.response?.data || 'Error placing bid. Please try again.');
+    }
   };
 
-  const cardData = [
-    {
-      id: 1,
-      image: 'https://images.pexels.com/photos/674010/pexels-photo-674010.jpeg?cs=srgb&dl=pexels-anjana-c-169994-674010.jpg&fm=jpg',
-      title: 'Listing Title 1',
-      description: 'Description for Listing 1.',
-      existingBids: ['Bid 1', 'Bid 2', 'Bid 3'],
-      minBidValue: '$50',
-    },
-    {
-      id: 2,
-      image: 'https://images.pexels.com/photos/207983/pexels-photo-207983.jpeg?cs=srgb&dl=pexels-pixabay-207983.jpg&fm=jpg',
-      title: 'Listing Title 2',
-      description: 'Description for Listing 2.',
-      existingBids: ['Bid 4', 'Bid 5', 'Bid 6'],
-      minBidValue: '$75',
-    },
-  ];
 
   return (
     <div>
@@ -81,27 +123,33 @@ const Dashboard = () => {
 
       {/* Cards Section */}
       <div className="container mt-5">
+        <h2 className="text-center mb-4">All Listings</h2>
         <div className="row">
-          {cardData.map((card) => (
-            <div className="col-md-4 mb-4" key={card.id}>
+          {listings.length === 0 ? (
+            <p>No listings found.</p>
+          ) : (listings.map((listing, index) => (
+            <div className="col-md-4 mb-4" key={index}>
               <Card className="card-hover">
-                <Card.Img variant="top" src={card.image} />
+                <Card.Img
+                  variant="top"
+                  src={listing.image ? `data:image/jpeg;base64,${listing.image}` : 'https://www.svgrepo.com/show/508699/landscape-placeholder.svg'}
+                />
                 <Card.Body>
-                  <Card.Title className="card-title">{card.title}</Card.Title>
-                  <Card.Text className="card-text">{card.description}</Card.Text>
-                  <Card.Subtitle className="card-subtitle minimum-bid mb-2">Minimum Bid Value: {card.minBidValue}</Card.Subtitle>
+                  <Card.Title className="card-title">{listing.title}</Card.Title>
+                  <Card.Text className="card-text">{listing.description}</Card.Text>
+                  <Card.Subtitle className="card-subtitle minimum-bid mb-2">Minimum Bid Value: {listing.minBidValue || '$0'}</Card.Subtitle>
                   <ul className="text-muted">
-                    {card.existingBids.map((bid, index) => (
+                    {(listing.existingBids || []).map((bid, index) => (
                       <li key={index}>{bid}</li>
                     ))}
                   </ul>
-                  <Button className="btn-gradient mt-3" onClick={() => handleMakeBidClick(card)}>
+                  <Button className="btn-gradient mt-3" onClick={() => handleMakeBidClick(listing)}>
                     Make a Bid
                   </Button>
                 </Card.Body>
               </Card>
             </div>
-          ))}
+          )))}
         </div>
       </div>
 
@@ -119,7 +167,7 @@ const Dashboard = () => {
                 value={bidValue}
                 onChange={(e) => setBidValue(e.target.value)}
                 placeholder="Enter your bid"
-                className="modal-input" // Use the modal input class
+                className="modal-input"
               />
             </Form.Group>
           </Form>

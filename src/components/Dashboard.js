@@ -134,6 +134,12 @@ const Dashboard = () => {
               <div className="col-md-4 mb-4" key={index}>
                 <Card className="card-hover">
                   <Card.Img
+                    style={{
+                      width: '100%',
+                      height: '250px', // Fixed height for uniformity
+                      objectFit: 'cover', // Ensures aspect ratio is maintained
+                      objectPosition: 'center', // Centers the image within the container
+                    }}
                     variant="top"
                     src={listing.image ? `data:image/jpeg;base64,${listing.image}` : 'https://www.svgrepo.com/show/508699/landscape-placeholder.svg'}
                   />
@@ -142,8 +148,10 @@ const Dashboard = () => {
                     <Card.Text className="card-text">{listing.description}</Card.Text>
                     <Card.Subtitle className="card-subtitle minimum-bid mb-2">Minimum Bid Value: {listing.minBidValue || '$0'}</Card.Subtitle>
                     <ul className="text-muted">
-                      {(listing.existingBids || []).map((bid, index) => (
-                        <li key={index}>{bid}</li>
+                      {(listing.bids || []).map((bid, index) => (
+                        <li key={index}>
+                          {bid.bidValue ? `$${bid.bidValue}` : 'No amount provided'}
+                        </li>
                       ))}
                     </ul>
                     <Button className="btn-gradient mt-3" onClick={() => handleMakeBidClick(listing)}>

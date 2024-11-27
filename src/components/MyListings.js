@@ -53,7 +53,6 @@ const MyListings = () => {
         const transactionData = {
           projectName: 'ResAuc',
           transactionType: 'Delete Listing',
-          listingId,
           title,
         };
 
@@ -87,9 +86,8 @@ const MyListings = () => {
         const transactionData = {
           projectName: 'ResAuc',
           transactionType: 'Sell Item',
-          listingId,
           title,
-          minBidValue: response.data.soldPrice,
+          soldPrice: response.data.soldPrice,
         };
 
         sdkRef.current?.sendMessage({
@@ -159,7 +157,12 @@ const MyListings = () => {
             {myListingsData.map((listing) => (
               <div className="col-md-4 mb-4" key={listing._id}>
                 <Card className="card-hover shadow-sm">
-                  <Card.Img variant="top" src={listing.image ? `data:image/jpeg;base64,${listing.image}` : 'https://www.svgrepo.com/show/508699/landscape-placeholder.svg'} />
+                  <Card.Img style={{
+                    width: '100%',
+                    height: '250px', // Fixed height for uniformity
+                    objectFit: 'cover', // Ensures aspect ratio is maintained
+                    objectPosition: 'center', // Centers the image within the container
+                  }} variant="top" src={listing.image ? `data:image/jpeg;base64,${listing.image}` : 'https://www.svgrepo.com/show/508699/landscape-placeholder.svg'} />
                   <Card.Body>
                     <Card.Title className="card-title">{listing.title}</Card.Title>
                     <Card.Text>{listing.description}</Card.Text>
@@ -170,7 +173,7 @@ const MyListings = () => {
                     <ul className="text-muted">
                       {Array.isArray(listing.bids) && listing.bids.map((bid, index) => (
                         <li key={index}>
-                          Bid Value: ${bid.bidValue} by {bid.username}
+                          Bid Value: ${bid.bidValue}
                         </li>
                       ))}
                     </ul>
@@ -186,7 +189,7 @@ const MyListings = () => {
                       variant="danger"
                       onClick={() => handleDeleteListing(listing._id, listing.title)}
                       className="btn-danger btn-gradient"
-                      disabled={listing.sold} 
+                      disabled={listing.sold}
                     >
                       Delete
                     </Button>

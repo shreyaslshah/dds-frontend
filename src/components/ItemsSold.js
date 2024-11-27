@@ -106,7 +106,13 @@ const ItemsSold = () => {
             {soldItems.map((item) => (
               <div className="col-md-4 mb-4" key={item._id}>
                 <Card className="card-hover shadow-sm">
-                  <Card.Img variant="top" src={item.image ? `data:image/jpeg;base64,${item.image}` : 'https://www.svgrepo.com/show/508699/landscape-placeholder.svg'} />
+                  <Card.Img
+                    style={{
+                      width: '100%',
+                      height: '250px', // Fixed height for uniformity
+                      objectFit: 'cover', // Ensures aspect ratio is maintained
+                      objectPosition: 'center', // Centers the image within the container
+                    }} variant="top" src={item.image ? `data:image/jpeg;base64,${item.image}` : 'https://www.svgrepo.com/show/508699/landscape-placeholder.svg'} />
                   <Card.Body>
                     <Card.Title className="card-title">{item.title}</Card.Title>
                     <Card.Text>{item.description}</Card.Text>
